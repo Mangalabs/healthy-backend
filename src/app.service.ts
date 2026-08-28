@@ -6,3 +6,5 @@ export class AppService {
     return 'Hello World!';
   }
 }
+
+//TODO: Esse arquivo todo é necessário?

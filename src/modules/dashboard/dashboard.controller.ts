@@ -14,6 +14,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 export class DashboardController {
   constructor(private readonly dashboardService: DashboardService) {}
 
+  //TODO: esse erro de Sessão inválida não deveria ser responsabilidade do midleware de auth?
   @Get('summary')
   async getSummary(@CurrentUser() user: AuthenticatedUser) {
     if (!user || !user.profileId) {

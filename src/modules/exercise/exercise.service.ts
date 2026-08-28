@@ -99,6 +99,12 @@ export class ExerciseService {
     return await this.prisma.exerciseLog.findMany({
       where,
       orderBy: { loggedAt: 'desc' },
+      //TODO: 2 coisas:
+      //1: Eu moveria essa lógica do take pra uma variável antes do return por legibilidade.
+      // take = startDate || endDate ? undefined : 30;
+      //2: essa lógica está um pouco confusa. 
+      //  Ele peg ao startDate se existir, se não existir ele verifica o endDate e se ele não existir ele pega 30
+      // 30 é um número mágico por si só, mas além disso, eu preferiria deixar essa lógica mais explicita no que ela significa.
       take: startDate || endDate ? undefined : 30,
     });
   }

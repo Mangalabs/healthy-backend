@@ -20,6 +20,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
+      //TODO: sem fallback_secret! Aqui é pra falhar mesmo se não conseguir o env.
       secretOrKey: process.env.JWT_SECRET || 'fallback_secret',
     });
   }

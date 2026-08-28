@@ -3,6 +3,7 @@ import { ExportService } from './export.service';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 
+//TODO: esse controller (e o service dele) deveriam estar dentro de /users?
 @Controller('users/export')
 export class ExportController {
   constructor(private readonly exportService: ExportService) {}
