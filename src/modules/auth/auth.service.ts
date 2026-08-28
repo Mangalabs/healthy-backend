@@ -56,6 +56,7 @@ export class AuthService {
   }
 
   async issueDevToken(email: string): Promise<AuthResponse> {
+    //TODO: mover esses process.env pra constantes deixa mais legível.
     const allowDevToken = process.env.ALLOW_DEV_TOKEN === 'true' || process.env.NODE_ENV !== 'production';
     if (!allowDevToken) {
       throw new ForbiddenException('Dev token endpoint is disabled in production.');
@@ -131,6 +132,9 @@ export class AuthService {
     const user = await this.usersService.findByEmail(dto.email);
 
     if (user) {
+      //TODO: esse algoritimo de geração de token me preocupa um pouco.
+      // Além dos números mágicos, esse algoritmo não é realmente aleatório, o que me da preocupações com segurança.
+      // Eu preferiria a geração de um UUID ou algum outro mecanismo já validado no mercado.
       const token = Math.floor(100000 + Math.random() * 900000).toString();
       const expires = new Date();
       expires.setHours(expires.getHours() + 1);

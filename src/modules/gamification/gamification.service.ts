@@ -14,6 +14,9 @@ export class GamificationService {
 
   @OnEvent('habit.logged')
   async handleHabitLoggedEvent(payload: { profileId: string; action: string }) {
+    //TODO: excelente uso de extração para constante, mas agora pensa se um dia tu quiser fazer uma campanha.
+    // Exemplo: dobro de XP na semana do dia da mulher
+    // Essa arquitetura não suporta esse tipo de campanha ainda.
     const XP_REWARD = 10;
 
     try {

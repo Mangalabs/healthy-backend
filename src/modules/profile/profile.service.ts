@@ -33,6 +33,9 @@ export class ProfileService {
 
     return await this.prisma.profile.update({
       where: { id: profileId },
+      //TODO: Eu preferiria extrair toda essa lógica de validação pra um objeto data antes do return.
+      // Pra um dev com alguma experiência, é fácil de entender, pra um dev mais junior isso pode ser bem confuso.
+      // Fica a teu critério.
       data: {
         ...(dto.name && { name: dto.name }),
         ...(dto.timezone && { timezone: dto.timezone }),

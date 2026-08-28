@@ -13,6 +13,8 @@ import { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 import { Profile } from '@prisma/client';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
+//TODO: nos endpoints abaixo, existe um erro que pode ser de sessão invalida.
+// Esse erro não seria melhor estando em um middleware que cuide da sessão?
 @Controller('profile')
 @UseGuards(JwtAuthGuard)
 export class ProfileController {

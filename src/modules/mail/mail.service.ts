@@ -12,6 +12,8 @@ export class MailService {
     const user = process.env.SMTP_USER;
     const pass = process.env.SMTP_PASS;
 
+    //TODO: eu sempre prefiro a condição de erro vindo primeiro no if e remover os elses do código.
+    // Aqui eu não se se tem como remover o else, mas eu ainda prefiriria inverter a lógica.
     if (host && port && user && pass) {
       this.transporter = nodemailer.createTransport({
         host,
@@ -21,6 +23,7 @@ export class MailService {
       });
       this.logger.log('Serviço de e-mail SMTP real inicializado.');
     } else {
+      //TODO: como vai ser a checagem em produção de que ele entrou no modo simulado? Talvez pra prod seja bom subir um erro mesmo.
       this.logger.warn(
         'Credenciais SMTP ausentes. O sistema rodará em MODO SIMULADO de envio de e-mails.',
       );
@@ -35,6 +38,7 @@ export class MailService {
     if (this.transporter) {
       try {
         await this.transporter.sendMail({
+          //TODO: talvez isolar esse process.env.SMTP_FROM em uma variável no topo do arquivo e usar ele aqui seja mais elegante
           from: `"Healthy Team" <${process.env.SMTP_FROM || 'no-reply@healthy.app'}>`,
           to: email,
           subject,
