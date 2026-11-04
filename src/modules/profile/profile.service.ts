@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
-import { Profile } from '@prisma/client';
+import { Prisma, Profile } from '@prisma/client';
 
 @Injectable()
 export class ProfileService {
@@ -42,6 +42,8 @@ export class ProfileService {
         }),
         ...(dto.petName && { petName: dto.petName }),
         ...(dto.petStatus && { petStatus: dto.petStatus }),
+        ...(dto.petSpecies && { petSpecies: dto.petSpecies }),
+        ...(dto.petDna && { petDna: dto.petDna as Prisma.InputJsonObject }),
       },
     });
   }

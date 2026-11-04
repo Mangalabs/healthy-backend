@@ -3,12 +3,15 @@ import { PrismaService } from '../../database/prisma.service';
 import { LogHydrationDto } from './dto/log-hydration.dto';
 import { HydrationLog } from '@prisma/client';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { TimezoneService } from '../../common/timezone/timezone.service';
+import { localDateKey, startOfLocalDay, addDaysToKey } from '../../common/utils/date.util';
 
 @Injectable()
 export class HydrationService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly timezoneService: TimezoneService,
   ) {}
 
   async logConsumption(
@@ -24,7 +27,7 @@ export class HydrationService {
       },
     });
 
-    this.eventEmitter.emit('habit.logged', {
+    await this.eventEmitter.emitAsync('habit.logged', {
       profileId,
       action: 'hydration_logged',
     });
@@ -36,17 +39,19 @@ export class HydrationService {
     profileId: string,
     targetDate: string,
   ): Promise<{ totalMl: number }> {
-    const startOfDay = new Date(targetDate);
-    startOfDay.setUTCHours(0, 0, 0, 0);
-
-    const endOfDay = new Date(targetDate);
-    endOfDay.setUTCHours(23, 59, 59, 999);
+    const timezone = await this.timezoneService.getTimezone(profileId);
+    const dayKey = targetDate
+      ? targetDate.slice(0, 10)
+      : localDateKey(new Date(), timezone);
 
     const logs = await this.prisma.hydrationLog.aggregate({
       _sum: { amountMl: true },
       where: {
         profileId,
-        loggedAt: { gte: startOfDay, lte: endOfDay },
+        loggedAt: {
+          gte: startOfLocalDay(dayKey, timezone),
+          lt: startOfLocalDay(addDaysToKey(dayKey, 1), timezone),
+        },
       },
     });
 

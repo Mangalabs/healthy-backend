@@ -1,4 +1,24 @@
-import { IsString, IsInt, Min, IsOptional, MaxLength } from 'class-validator';
+import {
+  IsString,
+  IsInt,
+  Min,
+  IsOptional,
+  MaxLength,
+  IsTimeZone,
+  IsIn,
+  IsObject,
+} from 'class-validator';
+
+export const PET_SPECIES = [
+  'CAT',
+  'DOG',
+  'OTTER',
+  'RABBIT',
+  'HAMSTER',
+  'FISH',
+  'GIRAFFE',
+] as const;
+export type PetSpecies = (typeof PET_SPECIES)[number];
 
 export class UpdateProfileDto {
   @IsString()
@@ -6,7 +26,7 @@ export class UpdateProfileDto {
   @MaxLength(255)
   name?: string;
 
-  @IsString()
+  @IsTimeZone({ message: 'Fuso horário inválido.' })
   @IsOptional()
   timezone?: string;
 
@@ -28,4 +48,13 @@ export class UpdateProfileDto {
   @IsOptional()
   @MaxLength(50)
   petStatus?: string;
+
+  @IsIn(PET_SPECIES, { message: 'Espécie de pet inválida.' })
+  @IsOptional()
+  petSpecies?: PetSpecies;
+
+  /** Aparência do pet (cores, padrão, traços). Estrutura validada pelo app. */
+  @IsObject()
+  @IsOptional()
+  petDna?: Record<string, unknown>;
 }

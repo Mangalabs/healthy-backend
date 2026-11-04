@@ -30,8 +30,12 @@ model Profile {
   dailyHydrationGoal Int       @default(2000) @map("daily_hydration_goal")
   petName            String    @default("Nix") @map("pet_name") @db.VarChar(100)
   petStatus          String    @default("HAPPY") @map("pet_status") @db.VarChar(50)
+  petSpecies         String    @default("CAT") @map("pet_species") @db.VarChar(30)
+  petDna             Json?     @map("pet_dna")
   currentXp          Int       @default(0) @map("current_xp")
   streakDays         Int       @default(0) @map("streak_days")
+  maxStreakDays      Int       @default(0) @map("max_streak_days")
+  lastActiveDate     String?   @map("last_active_date") @db.VarChar(10)
   createdAt          DateTime  @default(now()) @map("created_at")
   updatedAt          DateTime  @updatedAt @map("updated_at")
   deletedAt          DateTime? @map("deleted_at")
@@ -42,8 +46,25 @@ model Profile {
   hydrationLogs  HydrationLog[]
   weightLogs     WeightLog[]
   exerciseLogs   ExerciseLog[]
+  xpEvents       XpEvent[]
 
   @@map("profiles")
+}
+
+/// Livro-razão de XP: permite limite diário, auditoria e recálculo.
+model XpEvent {
+  id        String   @id @default(uuid()) @db.Uuid
+  profileId String   @map("profile_id") @db.Uuid
+  action    String   @db.VarChar(50)
+  refId     String   @default("") @map("ref_id") @db.VarChar(64)
+  dayKey    String   @map("day_key") @db.VarChar(10)
+  xp        Int
+  createdAt DateTime @default(now()) @map("created_at")
+
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId, dayKey, action])
+  @@map("xp_events")
 }
 
 model Medication {

@@ -20,7 +20,7 @@ export class WeightService {
       },
     });
 
-    this.eventEmitter.emit('habit.logged', {
+    await this.eventEmitter.emitAsync('habit.logged', {
       profileId,
       action: 'weight_logged',
     });

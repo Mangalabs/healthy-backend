@@ -106,9 +106,10 @@ export class MedicationsService {
     });
 
     if (dto.status === 'TAKEN') {
-      this.eventEmitter.emit('habit.logged', {
+      await this.eventEmitter.emitAsync('habit.logged', {
         profileId,
         action: 'medication_taken',
+        refId: medicationId,
       });
     }
 

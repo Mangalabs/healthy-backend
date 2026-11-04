@@ -3,12 +3,15 @@ import { PrismaService } from '../../database/prisma.service';
 import { LogExerciseDto } from './dto/log-exercise.dto';
 import { ExerciseLog } from '@prisma/client';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { TimezoneService } from '../../common/timezone/timezone.service';
+import { localDateKey, startOfLocalDay, addDaysToKey } from '../../common/utils/date.util';
 
 @Injectable()
 export class ExerciseService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly timezoneService: TimezoneService,
   ) {}
 
   async logExercise(
@@ -16,17 +19,15 @@ export class ExerciseService {
     dto: LogExerciseDto,
   ): Promise<ExerciseLog> {
     const targetDate = new Date(dto.loggedAt);
-
-    const startOfDay = new Date(targetDate);
-    startOfDay.setUTCHours(0, 0, 0, 0);
-
-    const endOfDay = new Date(targetDate);
-    endOfDay.setUTCHours(23, 59, 59, 999);
+    const { start: startOfDay, end: endOfDay } = await this.timezoneService.dayRange(
+      profileId,
+      targetDate,
+    );
 
     const existingLog = await this.prisma.exerciseLog.findFirst({
       where: {
         profileId,
-        loggedAt: { gte: startOfDay, lte: endOfDay },
+        loggedAt: { gte: startOfDay, lt: endOfDay },
       },
     });
 
@@ -52,7 +53,7 @@ export class ExerciseService {
     }
 
     if (dto.didExercise) {
-      this.eventEmitter.emit('habit.logged', {
+      await this.eventEmitter.emitAsync('habit.logged', {
         profileId,
         action: 'exercise_completed',
       });
@@ -65,16 +66,18 @@ export class ExerciseService {
     profileId: string,
     targetDate: string,
   ): Promise<ExerciseLog | null> {
-    const startOfDay = new Date(targetDate);
-    startOfDay.setUTCHours(0, 0, 0, 0);
-
-    const endOfDay = new Date(targetDate);
-    endOfDay.setUTCHours(23, 59, 59, 999);
+    const timezone = await this.timezoneService.getTimezone(profileId);
+    const dayKey = targetDate
+      ? targetDate.slice(0, 10)
+      : localDateKey(new Date(), timezone);
 
     return await this.prisma.exerciseLog.findFirst({
       where: {
         profileId,
-        loggedAt: { gte: startOfDay, lte: endOfDay },
+        loggedAt: {
+          gte: startOfLocalDay(dayKey, timezone),
+          lt: startOfLocalDay(addDaysToKey(dayKey, 1), timezone),
+        },
       },
       orderBy: { loggedAt: 'desc' },
     });

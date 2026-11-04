@@ -12,11 +12,13 @@ import { GamificationModule } from './modules/gamification/gamification.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { ProfileModule } from './modules/profile/profile.module';
 import { MailModule } from './modules/mail/mail.module';
+import { CommonModule } from './common/common.module';
 
 @Module({
   imports: [
     AppConfigModule,
     DatabaseModule,
+    CommonModule,
     EventEmitterModule.forRoot(),
     UsersModule,
     AuthModule,

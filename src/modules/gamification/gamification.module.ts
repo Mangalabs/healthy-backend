@@ -6,5 +6,6 @@ import { StreakService } from './streak.service';
 @Module({
   controllers: [GamificationController],
   providers: [GamificationService, StreakService],
+  exports: [StreakService],
 })
 export class GamificationModule {}
