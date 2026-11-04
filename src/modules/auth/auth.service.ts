@@ -12,6 +12,14 @@ import { SocialLoginDto } from './dto/social-login.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { MailService } from '../mail/mail.service';
+import { SocialTokenService } from './social-token.service';
+import {
+  RESET_CODE_TTL_MINUTES,
+  RESET_MAX_ATTEMPTS,
+  generateResetCode,
+  hashResetCode,
+  resetCodeMatches,
+} from './reset-code.util';
 import * as argon2 from 'argon2';
 import { randomUUID } from 'crypto';
 import { User, Profile } from '@prisma/client';
@@ -26,6 +34,11 @@ export interface AuthResponse {
       name: string;
       streakDays: number;
       currentXp: number;
+      dailyHydrationGoal: number;
+      timezone: string;
+      petName: string;
+      petSpecies: string;
+      petDna: unknown;
     };
   };
 }
@@ -36,6 +49,7 @@ export class AuthService {
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
     private readonly mailService: MailService,
+    private readonly socialTokenService: SocialTokenService,
   ) {}
 
   async register(dto: RegisterDto): Promise<AuthResponse> {
@@ -101,7 +115,11 @@ export class AuthService {
   }
 
   async socialLogin(dto: SocialLoginDto): Promise<AuthResponse> {
-    let user = await this.usersService.findByEmail(dto.email);
+    const identity = await this.socialTokenService.verify(
+      dto.provider,
+      dto.idToken,
+    );
+    let user = await this.usersService.findByEmail(identity.email);
 
     if (!user) {
       const randomPassword = randomUUID() + randomUUID();
@@ -109,10 +127,11 @@ export class AuthService {
 
       const defaultName =
         dto.name ||
+        identity.name ||
         (dto.provider === 'apple' ? 'Usuário Apple' : 'Usuário Convidado');
 
       user = await this.usersService.create(
-        dto.email,
+        identity.email,
         passwordHash,
         defaultName,
       );
@@ -131,11 +150,14 @@ export class AuthService {
     const user = await this.usersService.findByEmail(dto.email);
 
     if (user) {
-      const token = Math.floor(100000 + Math.random() * 900000).toString();
-      const expires = new Date();
-      expires.setHours(expires.getHours() + 1);
+      const token = generateResetCode();
+      const expires = new Date(Date.now() + RESET_CODE_TTL_MINUTES * 60_000);
 
-      await this.usersService.updateResetToken(user.id, token, expires);
+      await this.usersService.updateResetToken(
+        user.id,
+        hashResetCode(token),
+        expires,
+      );
       await this.mailService.sendResetPasswordEmail(user.email, token);
     }
 
@@ -146,9 +168,16 @@ export class AuthService {
   }
 
   async resetPassword(dto: ResetPasswordDto): Promise<{ message: string }> {
-    const user = await this.usersService.findByResetToken(dto.token);
+    const user = await this.usersService.findByEmail(dto.email);
+    const stored = user?.resetPasswordToken;
+    const expires = user?.resetPasswordExpires;
 
-    if (!user) {
+    if (!user || !stored || !expires || expires <= new Date()) {
+      throw new UnauthorizedException('Token inválido ou expirado.');
+    }
+
+    if (!resetCodeMatches(dto.token.trim(), stored)) {
+      await this.usersService.registerResetFailure(user.id, RESET_MAX_ATTEMPTS);
       throw new UnauthorizedException('Token inválido ou expirado.');
     }
 
@@ -179,6 +208,11 @@ export class AuthService {
           name: user.profile.name,
           streakDays: user.profile.streakDays,
           currentXp: user.profile.currentXp,
+          dailyHydrationGoal: user.profile.dailyHydrationGoal,
+          timezone: user.profile.timezone,
+          petName: user.profile.petName,
+          petSpecies: user.profile.petSpecies,
+          petDna: user.profile.petDna,
         },
       },
     };

@@ -1,6 +1,10 @@
-import { IsNotEmpty, IsString, MinLength } from 'class-validator';
+import { IsEmail, IsNotEmpty, IsString, MinLength } from 'class-validator';
 
 export class ResetPasswordDto {
+  @IsEmail({}, { message: 'E-mail inválido.' })
+  @IsNotEmpty({ message: 'O e-mail é obrigatório.' })
+  email: string;
+
   @IsString()
   @IsNotEmpty({ message: 'O token é obrigatório.' })
   token: string;

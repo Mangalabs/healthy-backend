@@ -1,10 +1,4 @@
-import {
-  IsEmail,
-  IsNotEmpty,
-  IsString,
-  IsEnum,
-  IsOptional,
-} from 'class-validator';
+import { IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class SocialLoginDto {
   @IsEnum(['google', 'apple'], {
@@ -13,14 +7,12 @@ export class SocialLoginDto {
   @IsNotEmpty()
   provider: 'google' | 'apple';
 
+  /** ID token (JWT) emitido pelo Google ou pela Apple; é verificado no servidor. */
   @IsString()
-  @IsNotEmpty({ message: 'O ID do provedor é obrigatório.' })
-  providerId: string;
+  @IsNotEmpty({ message: 'O token do provedor é obrigatório.' })
+  idToken: string;
 
-  @IsEmail({}, { message: 'E-mail inválido.' })
-  @IsNotEmpty()
-  email: string;
-
+  /** A Apple só envia o nome no primeiro login, e fora do token. */
   @IsString()
   @IsOptional()
   name?: string;

@@ -78,20 +78,22 @@ export class UsersService {
       data: {
         resetPasswordToken: token,
         resetPasswordExpires: expires,
+        resetPasswordAttempts: 0,
       },
     });
   }
 
-  async findByResetToken(token: string): Promise<User | null> {
-    return await this.prisma.user.findFirst({
-      where: {
-        resetPasswordToken: token,
-        resetPasswordExpires: {
-          gt: new Date(),
-        },
-        deletedAt: null,
-      },
+  /** Conta uma tentativa errada e invalida o código ao atingir o limite. */
+  async registerResetFailure(userId: string, maxAttempts: number): Promise<void> {
+    const user = await this.prisma.user.update({
+      where: { id: userId },
+      data: { resetPasswordAttempts: { increment: 1 } },
+      select: { resetPasswordAttempts: true },
     });
+
+    if (user.resetPasswordAttempts >= maxAttempts) {
+      await this.updateResetToken(userId, null, null);
+    }
   }
 
   async updatePassword(userId: string, passwordHash: string): Promise<void> {
@@ -101,6 +103,7 @@ export class UsersService {
         passwordHash,
         resetPasswordToken: null,
         resetPasswordExpires: null,
+        resetPasswordAttempts: 0,
       },
     });
   }
