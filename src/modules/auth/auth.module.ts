@@ -6,6 +6,7 @@ import { AuthController } from './auth.controller';
 import { UsersModule } from '../users/users.module';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { SocialTokenService } from './social-token.service';
+import { RefreshTokenService } from './refresh-token.service';
 
 @Module({
   imports: [
@@ -21,6 +22,6 @@ import { SocialTokenService } from './social-token.service';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, SocialTokenService],
+  providers: [AuthService, JwtStrategy, SocialTokenService, RefreshTokenService],
 })
 export class AuthModule {}

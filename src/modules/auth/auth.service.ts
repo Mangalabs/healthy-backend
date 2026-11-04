@@ -11,6 +11,11 @@ import { LoginDto } from './dto/login.dto';
 import { SocialLoginDto } from './dto/social-login.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { RefreshTokenDto } from './dto/refresh-token.dto';
+import {
+  RefreshTokenService,
+  SESSION_EXPIRED_MESSAGE,
+} from './refresh-token.service';
 import { MailService } from '../mail/mail.service';
 import { SocialTokenService } from './social-token.service';
 import {
@@ -26,6 +31,7 @@ import { User, Profile } from '@prisma/client';
 
 export interface AuthResponse {
   accessToken: string;
+  refreshToken: string;
   user: {
     id: string;
     email: string;
@@ -50,6 +56,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly mailService: MailService,
     private readonly socialTokenService: SocialTokenService,
+    private readonly refreshTokens: RefreshTokenService,
   ) {}
 
   async register(dto: RegisterDto): Promise<AuthResponse> {
@@ -183,13 +190,44 @@ export class AuthService {
 
     const newPasswordHash = await argon2.hash(dto.newPassword);
     await this.usersService.updatePassword(user.id, newPasswordHash);
+    // Quem tinha a senha antiga (ou um token roubado) perde a sessão.
+    await this.refreshTokens.revokeAllForUser(user.id);
 
     return { message: 'Senha redefinida com sucesso!' };
   }
 
-  private generateAuthResponse(
+  /** Troca um refresh token válido por um par novo (rotação de uso único). */
+  async refresh(dto: RefreshTokenDto): Promise<AuthResponse> {
+    const { userId, familyId } = await this.refreshTokens.consume(
+      dto.refreshToken,
+    );
+
+    let user: (User & { profile: Profile | null }) | null = null;
+    try {
+      user = await this.usersService.findById(userId);
+    } catch {
+      user = null;
+    }
+    if (!user || !user.profile) {
+      await this.refreshTokens.revokeAllForUser(userId);
+      throw new UnauthorizedException(SESSION_EXPIRED_MESSAGE);
+    }
+
+    return this.generateAuthResponse(
+      user as User & { profile: Profile },
+      familyId,
+    );
+  }
+
+  async logout(dto: RefreshTokenDto): Promise<{ message: string }> {
+    await this.refreshTokens.revokeByToken(dto.refreshToken);
+    return { message: 'Sessão encerrada.' };
+  }
+
+  private async generateAuthResponse(
     user: User & { profile: Profile },
-  ): AuthResponse {
+    familyId?: string,
+  ): Promise<AuthResponse> {
     const payload = {
       sub: user.id,
       email: user.email,
@@ -197,9 +235,11 @@ export class AuthService {
     };
 
     const accessToken = this.jwtService.sign(payload);
+    const refreshToken = await this.refreshTokens.issue(user.id, familyId);
 
     return {
       accessToken,
+      refreshToken,
       user: {
         id: user.id,
         email: user.email,
