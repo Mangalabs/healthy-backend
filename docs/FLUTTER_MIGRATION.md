@@ -1,95 +1,79 @@
-# Migração para Flutter + Pet vivo
+# App Flutter + Pet vivo: estado e contrato
 
-## 0. Estado atual (feito no backend)
+O app Flutter (repositório `health_flutter`, local) substituiu o app React Native. Este backend é o mesmo NestJS; o que mudou está resumido abaixo. Todas as respostas vêm em `{ data: ... }`; erros vêm como `{ statusCode, error, code?, details? }` (`error` é a mensagem pronta para mostrar).
 
-| Item | O que mudou |
+## 1. Regras de produto (valem para o servidor e para o app)
+
+- **XP é constância.** Há uma meta do dia montada a partir dos módulos que a pessoa escolheu acompanhar (remédios, água, exercício, refeições; peso não conta como tarefa). Teto de 150 XP por dia. A sequência conta o dia que bateu o mínimo; um dia de descanso protege a sequência. **Nunca há XP por resultado de peso.**
+- **Moedas vêm de metas cumpridas**, nunca de velocidade ou exagero. Ficam num livro-razão (`coin_events`, idempotente por `profileId + reason + refId`). Só compram **enfeites**: cabelo, roupa, pele (cor da pelagem) e cenário. O corpo do pet não é vendido e moedas não são perdidas.
+- **Peso e piso de saúde.** Meta de peso abaixo do piso (IMC 18,5, ajustável de 16 a 22) exige confirmação e a recompensa para no piso. O objetivo muda o sentido da meta (em recuperação, ganhar peso é cumprir).
+- **O pet tem 3 camadas:** identidade (DNA), corpo (volume × músculo, vindos da tendência lenta do peso e dos treinos; desligável no modo "só hábitos") e vitalidade (vinda dos hábitos). Abaixo do piso o pet aparece "frágil", nunca "mais bonito", com um aviso gentil.
+- Módulos são opcionais. Conta antiga (sem "Sobre você") acompanha remédios, água, exercício e peso; refeições só se a pessoa pedir.
+
+## 2. Contrato da API
+
+| Área | Rotas |
 |---|---|
-| Fuso horário | "Hoje" agora é o dia local do `profile.timezone` (padrão `America/Sao_Paulo`) em dashboard, água e exercício. Antes era meia-noite UTC (o dia virava às 21h). Util: `src/common/utils/date.util.ts`. |
-| XP | Uma só fonte de verdade: o servidor. Regras em `XP_RULES` (remédio 15 uma vez por dia por remédio, água 10 até 5 por dia, exercício 50, peso 10, uma vez por dia). Registro em `xp_events`. |
-| Nível | `levelFromTotalXp`: o nível N custa `N × 100` XP para o próximo. `currentXp` é o XP total acumulado. |
-| Sequência | Usa `last_active_date` (dia local), não mais `updatedAt`. Há `max_streak_days` e a sequência efetiva cai a 0 se passou mais de 1 dia sem hábito. |
-| DNA do pet | Novos campos `pet_species` e `pet_dna` (JSON) no perfil, aceitos em `PATCH /profile`. |
-| Login | A resposta do login agora traz `petName`, `petSpecies`, `petDna`, `dailyHydrationGoal` e `timezone`. |
-| Guard | `GET /gamification/status` não tinha autenticação. Agora exige JWT. |
+| Sessão | `POST /auth/register`, `login`, `social-login`, `refresh` (uso único, com rotação), `logout`, `forgot-password`, `reset-password` |
+| Perfil | `GET /profile`, `PATCH /profile` (nome, fuso, meta de água, `petName`, `petSpecies`, `petDna`, altura, objetivo, peso meta, módulos, espelho do corpo, piso). O perfil devolve `coins` e `petLoadout`. |
+| Hábitos | `POST /medications`, `GET /medications`, `PATCH /medications/:id/deactivate`, `POST /medications/:id/log`, `GET /medications/logs`; `POST /hydration`, `GET /hydration/daily`, `/history`; `POST /exercise`, `GET /exercise/daily`, `/history`; `POST /weight`, `GET /weight/history`; `POST /meals`, `GET /meals/daily`, `/history`, `DELETE /meals/:id` |
+| Metas | `GET /goals/today` (tarefas, XP e moedas do dia), `GET /goals/history?days=` (cada dia com o detalhe das tarefas), `POST /goals/rest-day`, `GET/POST /goals`, `DELETE /goals/:id`, `GET /coins` |
+| Gamificação | `GET /gamification/status`, `GET /dashboard/summary` |
+| Pet com IA | `GET /pets/capabilities` → `{ aiGeneration }`; `POST /pets/generate` `{ species, description }` → `{ look, suggestedName }` (5/hora e 15/dia por perfil) |
+| Loja | `GET /shop` → `{ coins, items[], loadout }`; `POST /shop/items/:id/buy` (cobra e entrega na mesma transação; 409 se já tem); `PUT /shop/loadout` `{ category, itemId \| null }` |
+| Dados | `GET /users/export` |
 
-**Pendente antes de rodar:** aplicar a migration `20261026120000_pet_dna_xp_ledger` (`npx prisma migrate deploy` ou `migrate dev`). Ela ainda não foi aplicada em nenhum banco.
+Códigos de erro para o app agir: `TARGET_BELOW_FLOOR` (com o piso em `details`), `AI_UNAVAILABLE` (503), `AI_RATE_LIMIT` (429), `AI_REJECTED` (422), `AI_FAILED` (502).
 
-## 1. Contrato da API para o app novo
+## 3. DNA do pet (v1)
 
-Todas as respostas vêm em `{ data: ... }`.
+Salvo em `profile.petDna`; a espécie vem de `profile.petSpecies`.
 
-- `POST /auth/login | register | social-login` → `{ accessToken, refreshToken, user: { id, email, profile } }`
-- `POST /auth/refresh` `{ refreshToken }` → mesmo formato do login. O refresh token é **de uso único** (rotação): guarde o novo a cada resposta. Token inválido, expirado, revogado ou já usado → `401`.
-- `POST /auth/logout` `{ refreshToken }` → revoga a sessão (público, funciona com access token vencido).
-- Sessão: access token curto (`JWT_EXPIRES_IN`, padrão 900 s) + refresh token opaco guardado só como hash (`REFRESH_TOKEN_TTL_DAYS`, padrão 30). Reaparecer um refresh token já usado indica replay e revoga a cadeia inteira; redefinir a senha revoga todas as sessões.
-- `GET /gamification/status` → `{ totalXp, level, xpIntoLevel, nextLevelGoal, progressPercentage, streakDays, maxStreakDays, lastActiveDate }`
-- `GET /dashboard/summary` → `{ hydration: {current}, exercise: {done}, profile }`
-- `PATCH /profile` → `name, timezone, dailyHydrationGoal, petName, petSpecies, petDna`
-- Remédios, água, exercício e peso: sem mudança de rota.
+```json
+{
+  "v": 1,
+  "bodyType": "sitting | standing | upright | fish | tall",
+  "primaryColor": "#E8A55C",
+  "secondaryColor": "#F8E3C4",
+  "pattern": "none | spots | stripes | belly",
+  "earType": "none | pointy | floppy | round | horns",
+  "eyeType": "round | happy | sparkle | lashes | dots | wink",
+  "mouthType": "smile | open | kitty",
+  "accessory": "bow | glasses | hat | scarf | null",
+  "seed": 123456
+}
+```
 
-O app deve enviar o `timezone` do aparelho (ex.: `America/Sao_Paulo`) no primeiro acesso.
+Espécies desenhadas: `CAT`, `DOG`, `OTTER`, `FISH`, `GIRAFFE` (`RABBIT` e `HAMSTER` o servidor aceita, o app ainda não desenha). Acessórios abrem por nível ou sequência. O app lê o DNA com tolerância (campo ausente ou desconhecido vira o padrão).
 
-## 2. Mapa de stack
+Itens da loja ficam fora do DNA, em `profile.petLoadout` (`{ "HAIR": "hair_bun", ... }`); o catálogo e os preços moram em `src/modules/shop/shop.catalog.ts`, e o app desenha cada item pelo `id` (id desconhecido não desenha nada).
 
-| Hoje (React Native) | Flutter |
+## 4. Configuração (variáveis de ambiente)
+
+| Variável | Para quê |
 |---|---|
-| expo-router | `go_router` |
-| zustand + react-query | `flutter_riverpod` (+ `AsyncNotifier`) |
-| axios | `dio` (com interceptor de JWT) |
-| expo-secure-store | `flutter_secure_storage` |
-| async-storage | `shared_preferences` |
-| nativewind + design-system | `ThemeData` + widgets próprios (`AppButton`, `AppCard`, `AppInput`, `Toast`) |
-| gifted-charts | `fl_chart` |
-| moti / reanimated | animações implícitas + `flutter_animate`; o pet usa `CustomPainter` |
-| expo-auth-session | `google_sign_in`, `sign_in_with_apple` |
-| expo-notifications | `flutter_local_notifications` |
-| datetimepicker | `showTimePicker` / `showDatePicker` |
+| `DATABASE_URL`, `JWT_SECRET` | Obrigatórias. **Use um `JWT_SECRET` forte em produção.** |
+| `ANTHROPIC_API_KEY` | Liga "Criar com IA" (modelo `claude-haiku-5-5`, saída estruturada). Sem ela o app segue normal e a opção some. |
+| `PET_AI_MODEL` | Opcional: troca o modelo do gerador. |
+| `SMTP_*` | Envio do código de recuperação de senha. |
 
-Estrutura sugerida: `lib/core` (api, storage, tema), `lib/features/{auth,dashboard,medications,hydration,exercise,weight,statistics,profile,onboarding,pet}`.
+O servidor valida tudo que volta do modelo (cores `#RRGGBB`, enumerações, nome sem símbolos; corpo escuro demais é clareado para os olhos aparecerem) antes de entregar ao app.
 
-## 3. Fases e estimativa
+## 5. Como rodar e testar
 
-Estimativas com margem de erro, para igualar o app atual (cerca de 6 mil linhas).
+```bash
+npx prisma migrate deploy        # aplica as migrations
+npx nest build && node dist/main # sobe em :3000 (prefixo /api/v1)
+npx jest                         # unitários
+DATABASE_URL=... npx jest --config ./test/jest-e2e.json --runInBand --forceExit   # e2e, precisa de Postgres
+```
 
-| Fase | Entrega | Tempo |
-|---|---|---|
-| A | Projeto, tema, componentes, cliente HTTP com JWT, roteamento | 2 a 3 dias |
-| B | Login, cadastro, recuperação de senha, login social | 2 a 3 dias |
-| C | Dashboard: remédios (lista, formulário, card), água, exercício, peso | 4 a 6 dias |
-| D | Estatísticas e gráficos | 2 a 3 dias |
-| E | Perfil e onboarding (com escolha de espécie e nome) | 1 a 2 dias |
-| F | Testes em aparelho, ajustes de layout, builds Android (e iOS) | 2 a 4 dias |
-| **Total** | **Paridade com o app de hoje** | **2 a 4 semanas** |
-| G | Pet: renderizador por camadas (3 espécies), expressões, animações | 1 a 2 semanas |
-| H | Motor de necessidades ligado aos registros | 3 a 5 dias |
-| I | Refeições (backend + card), notificações do pet | 1 semana |
-| J | Geração do DNA por IA no cadastro | 2 a 3 dias |
+App (em `health_flutter`): `flutter test`, `flutter analyze`, `flutter build apk --debug`. O endereço da API vem de `--dart-define=API_URL=...`; o padrão no emulador Android é `http://10.0.2.2:3000/api/v1`. **Build de release exige HTTPS** (o Android bloqueia HTTP puro fora de debug).
 
-Observação: iPhone precisa de Mac ou serviço de build na nuvem (ex.: Codemagic). Android funciona direto no Windows.
+## 6. O que ainda não existe
 
-## 4. Pet: especificação resumida
-
-**DNA** (JSON salvo em `pet_dna`): `{ bodyType: 'blob'|'fish'|'tall', primaryColor, secondaryColor, pattern, earType, eyeType, accessory, seed }`. A `seed` varia detalhes sutis por pessoa.
-
-**Camadas** no `CustomPainter`: corpo (por tipo) → peças da espécie → marcas → rosto (preso ao "ponto do rosto") → sobreposições de estado.
-
-**Motor de necessidades** (função pura `computePetStatus(dados, agora)`):
-- Saúde: doses vencidas por `timeOfDay`; esquecida = atrasada. `SKIPPED` não penaliza.
-- Sede: água atual contra o esperado até agora (meta × fração do dia, 7h às 22h).
-- Fome: refeições do dia (check-ins); dias sem comer deixam o corpo mais magro.
-- Energia: exercício dos últimos 7 dias; descanso não penaliza no começo.
-- Humor: o pior das necessidades, mais hora do dia (dorme das 23h às 6h).
-- O pet nunca morre; o pior estado é "de cama".
-
-## 5. Ordem de execução
-
-1. Aplicar a migration e testar o backend (feito o código, falta aplicar).
-2. Fases A a F (app Flutter com paridade).
-3. Fases G e H (pet e necessidades).
-4. Fases I e J.
-
-## 6. Perguntas em aberto
-
-- Existe projeto Flutter antigo para reaproveitar? (há uma migration chamada `add_flutter_ui_fields`)
-- Plataformas-alvo: Android, iPhone, web?
-- O app já está publicado com usuários reais? Isso afeta como migrar contas e dados.
+- Login Google/Apple no app (o endpoint `social-login` existe; falta ligar os SDKs e as chaves).
+- Build iOS (precisa de Mac ou serviço de build na nuvem).
+- Rota para a pessoa apagar a própria conta (necessária para publicar nas lojas).
+- Espécies `RABBIT` e `HAMSTER` no desenho.
+- Limite de uso da IA é em memória (por instância do servidor).
