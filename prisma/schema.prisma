@@ -84,6 +84,8 @@ model Profile {
   petStatus          String    @default("HAPPY") @map("pet_status") @db.VarChar(50)
   petSpecies         String    @default("CAT") @map("pet_species") @db.VarChar(30)
   petDna             Json?     @map("pet_dna")
+  /// Itens da loja em uso, por categoria: { "HAIR": "hair_bun", ... }.
+  petLoadout         Json      @default("{}") @map("pet_loadout")
   currentXp          Int       @default(0) @map("current_xp")
   streakDays         Int       @default(0) @map("streak_days")
   maxStreakDays      Int       @default(0) @map("max_streak_days")
@@ -101,6 +103,7 @@ model Profile {
   mealLogs       MealLog[]
   xpEvents       XpEvent[]
   coinEvents     CoinEvent[]
+  petItems       PetItem[]
   restDays       RestDay[]
   goals          Goal[]
 
@@ -242,6 +245,20 @@ model CoinEvent {
   @@unique([profileId, reason, refId])
   @@index([profileId, createdAt])
   @@map("coin_events")
+}
+
+/// Item cosmético da loja que a pessoa já comprou. O catálogo (nomes, preços,
+/// categorias) vive no código; aqui só fica quem tem o quê.
+model PetItem {
+  id        String   @id @default(uuid()) @db.Uuid
+  profileId String   @map("profile_id") @db.Uuid
+  itemId    String   @map("item_id") @db.VarChar(40)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@unique([profileId, itemId])
+  @@map("pet_items")
 }
 
 /// Dia em que a pessoa pediu para descansar: protege a sequência.

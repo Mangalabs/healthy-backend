@@ -59,25 +59,34 @@ export class CoinsService {
     }
   }
 
-  /** Gasta moedas; falha sem tirar nada se o saldo não cobre. */
+  /**
+   * Gasta moedas; falha sem tirar nada se o saldo não cobre. Com [tx] entra na
+   * transação de quem chamou (ex.: compra + item entregue juntos).
+   */
   async spend(
     profileId: string,
     amount: number,
     reason: string,
     refId: string,
+    tx?: Prisma.TransactionClient,
   ): Promise<void> {
-    await this.prisma.$transaction(async (tx) => {
-      const updated = await tx.profile.updateMany({
+    const run = async (client: Prisma.TransactionClient) => {
+      const updated = await client.profile.updateMany({
         where: { id: profileId, coins: { gte: amount } },
         data: { coins: { decrement: amount } },
       });
       if (updated.count === 0) {
         throw new BadRequestException('Moedas insuficientes.');
       }
-      await tx.coinEvent.create({
+      await client.coinEvent.create({
         data: { profileId, reason, refId, amount: -amount },
       });
-    });
+    };
+    if (tx) {
+      await run(tx);
+    } else {
+      await this.prisma.$transaction(run);
+    }
   }
 
   async balance(profileId: string): Promise<number> {

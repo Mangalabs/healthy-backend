@@ -10,6 +10,7 @@ import { WeightModule } from './modules/weight/weight.module';
 import { ExerciseModule } from './modules/exercise/exercise.module';
 import { MealsModule } from './modules/meals/meals.module';
 import { PetsModule } from './modules/pets/pets.module';
+import { ShopModule } from './modules/shop/shop.module';
 import { GamificationModule } from './modules/gamification/gamification.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { ProfileModule } from './modules/profile/profile.module';
@@ -30,6 +31,7 @@ import { CommonModule } from './common/common.module';
     ExerciseModule,
     MealsModule,
     PetsModule,
+    ShopModule,
     GamificationModule,
     DashboardModule,
     ProfileModule,
