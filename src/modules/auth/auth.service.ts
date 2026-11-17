@@ -45,6 +45,14 @@ export interface AuthResponse {
       petName: string;
       petSpecies: string;
       petDna: unknown;
+      heightCm: number | null;
+      bodyGoal: string | null;
+      targetWeightKg: number | null;
+      healthFloorBmi: number;
+      trackedModules: string[];
+      bodyMirror: boolean;
+      setupCompleted: boolean;
+      coins: number;
     };
   };
 }
@@ -253,6 +261,17 @@ export class AuthService {
           petName: user.profile.petName,
           petSpecies: user.profile.petSpecies,
           petDna: user.profile.petDna,
+          heightCm: user.profile.heightCm,
+          bodyGoal: user.profile.bodyGoal,
+          targetWeightKg:
+            user.profile.targetWeightKg === null
+              ? null
+              : Number(user.profile.targetWeightKg),
+          healthFloorBmi: Number(user.profile.healthFloorBmi),
+          trackedModules: user.profile.trackedModules,
+          bodyMirror: user.profile.bodyMirror,
+          setupCompleted: user.profile.setupCompletedAt !== null,
+          coins: user.profile.coins,
         },
       },
     };

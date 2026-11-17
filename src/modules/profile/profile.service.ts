@@ -44,6 +44,20 @@ export class ProfileService {
         ...(dto.petStatus && { petStatus: dto.petStatus }),
         ...(dto.petSpecies && { petSpecies: dto.petSpecies }),
         ...(dto.petDna && { petDna: dto.petDna as Prisma.InputJsonObject }),
+        ...(dto.heightCm !== undefined && { heightCm: dto.heightCm }),
+        ...(dto.bodyGoal !== undefined && { bodyGoal: dto.bodyGoal }),
+        ...(dto.targetWeightKg !== undefined && {
+          targetWeightKg: dto.targetWeightKg,
+        }),
+        ...(dto.healthFloorBmi !== undefined && {
+          healthFloorBmi: dto.healthFloorBmi,
+        }),
+        ...(dto.trackedModules !== undefined && {
+          trackedModules: dto.trackedModules,
+        }),
+        ...(dto.bodyMirror !== undefined && { bodyMirror: dto.bodyMirror }),
+        ...(dto.setupCompleted === true &&
+          !profile.setupCompletedAt && { setupCompletedAt: new Date() }),
       },
     });
   }

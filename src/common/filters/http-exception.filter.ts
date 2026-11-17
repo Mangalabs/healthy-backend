@@ -32,14 +32,24 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       exception instanceof Error ? exception.stack : String(exception),
     );
 
+    // Respostas com objeto podem trazer `code` e dados extras para o app agir
+    // (ex.: TARGET_BELOW_FLOOR com o piso de peso); eles vão em `code`/`details`.
+    const body =
+      typeof message === 'string' ? {} : (message as Record<string, unknown>);
+    const { message: bodyMessage, code } = body;
+    const details = Object.fromEntries(
+      Object.entries(body).filter(
+        ([key]) => !['message', 'statusCode', 'error', 'code'].includes(key),
+      ),
+    );
+
     response.status(status).json({
       statusCode: status,
       timestamp: new Date().toISOString(),
       path: request.url,
-      error:
-        typeof message === 'string'
-          ? message
-          : (message as Record<string, unknown>).message || message,
+      error: typeof message === 'string' ? message : bodyMessage || message,
+      ...(code ? { code } : {}),
+      ...(Object.keys(details).length > 0 ? { details } : {}),
     });
   }
 }

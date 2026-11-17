@@ -43,6 +43,25 @@ model RefreshToken {
   @@map("refresh_tokens")
 }
 
+/// Objetivo corporal da pessoa. Muda o significado dos dados no pet (ex.:
+/// em RECOVER, ganhar peso é conquista e magreza nunca é).
+enum BodyGoal {
+  LOSE
+  DEFINE
+  GAIN
+  MAINTAIN
+  RECOVER
+}
+
+/// Partes do app que a pessoa escolheu acompanhar. O pet só reage ao que está ativo.
+enum TrackedModule {
+  MEDICATION
+  HYDRATION
+  EXERCISE
+  WEIGHT
+  MEALS
+}
+
 model Profile {
   id                 String    @id @default(uuid()) @db.Uuid
   userId             String    @unique @map("user_id") @db.Uuid
@@ -50,6 +69,17 @@ model Profile {
   timezone           String    @default("UTC") @db.VarChar(50)
   avatarUrl          String?   @map("avatar_url")
   dailyHydrationGoal Int       @default(2000) @map("daily_hydration_goal")
+  heightCm           Int?      @map("height_cm")
+  bodyGoal           BodyGoal? @map("body_goal")
+  targetWeightKg     Decimal?  @map("target_weight_kg") @db.Decimal(5, 2)
+  /// IMC mínimo saudável usado como piso nas metas de peso (ajustável).
+  healthFloorBmi     Decimal   @default(18.5) @map("health_floor_bmi") @db.Decimal(3, 1)
+  trackedModules     TrackedModule[] @map("tracked_modules")
+  /// false = modo "só hábitos": o corpo do pet não acompanha o peso.
+  bodyMirror         Boolean   @default(true) @map("body_mirror")
+  /// Quando a pessoa passou pelo "Sobre você"; nulo = conta antiga ou pulou.
+  setupCompletedAt   DateTime? @map("setup_completed_at") @db.Timestamptz
+  coins              Int       @default(0)
   petName            String    @default("Nix") @map("pet_name") @db.VarChar(100)
   petStatus          String    @default("HAPPY") @map("pet_status") @db.VarChar(50)
   petSpecies         String    @default("CAT") @map("pet_species") @db.VarChar(30)
@@ -69,6 +99,9 @@ model Profile {
   weightLogs     WeightLog[]
   exerciseLogs   ExerciseLog[]
   xpEvents       XpEvent[]
+  coinEvents     CoinEvent[]
+  restDays       RestDay[]
+  goals          Goal[]
 
   @@map("profiles")
 }
@@ -170,4 +203,74 @@ model ExerciseLog {
 
   @@index([profileId, loggedAt])
   @@map("exercise_logs")
+}
+/// Livro-razão de moedas. Moedas vêm de metas cumpridas (nunca de velocidade)
+/// e só compram itens cosméticos. A chave única torna cada prêmio idempotente.
+model CoinEvent {
+  id        String   @id @default(uuid()) @db.Uuid
+  profileId String   @map("profile_id") @db.Uuid
+  amount    Int
+  reason    String   @db.VarChar(40)
+  refId     String   @default("") @map("ref_id") @db.VarChar(80)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@unique([profileId, reason, refId])
+  @@index([profileId, createdAt])
+  @@map("coin_events")
+}
+
+/// Dia em que a pessoa pediu para descansar: protege a sequência.
+model RestDay {
+  id        String   @id @default(uuid()) @db.Uuid
+  profileId String   @map("profile_id") @db.Uuid
+  dayKey    String   @map("day_key") @db.VarChar(10)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@unique([profileId, dayKey])
+  @@map("rest_days")
+}
+
+enum GoalType {
+  WEIGHT
+  WEEKLY_WORKOUTS
+}
+
+enum GoalDirection {
+  LOSE
+  GAIN
+  MAINTAIN
+}
+
+enum GoalStatus {
+  ACTIVE
+  ACHIEVED
+  CANCELLED
+}
+
+/// Meta de longo prazo. Em metas de peso, `checkpoints` guarda os degraus
+/// intermediários [{ value, achievedAt }]; `rewardTarget` é o alvo que dá
+/// recompensa (o piso de saúde, quando o alvo da pessoa fica abaixo dele).
+model Goal {
+  id           String        @id @default(uuid()) @db.Uuid
+  profileId    String        @map("profile_id") @db.Uuid
+  type         GoalType
+  direction    GoalDirection
+  status       GoalStatus    @default(ACTIVE)
+  startValue   Decimal       @map("start_value") @db.Decimal(6, 2)
+  targetValue  Decimal       @map("target_value") @db.Decimal(6, 2)
+  rewardTarget Decimal       @map("reward_target") @db.Decimal(6, 2)
+  checkpoints  Json          @default("[]")
+  startedAt    DateTime      @default(now()) @map("started_at")
+  achievedAt   DateTime?     @map("achieved_at")
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId, status])
+  @@map("goals")
 }
