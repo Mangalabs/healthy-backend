@@ -8,6 +8,7 @@ import { MedicationsModule } from './modules/medications/medications.module';
 import { HydrationModule } from './modules/hydration/hydration.module';
 import { WeightModule } from './modules/weight/weight.module';
 import { ExerciseModule } from './modules/exercise/exercise.module';
+import { MealsModule } from './modules/meals/meals.module';
 import { GamificationModule } from './modules/gamification/gamification.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { ProfileModule } from './modules/profile/profile.module';
@@ -26,6 +27,7 @@ import { CommonModule } from './common/common.module';
     HydrationModule,
     WeightModule,
     ExerciseModule,
+    MealsModule,
     GamificationModule,
     DashboardModule,
     ProfileModule,

@@ -26,6 +26,9 @@ export const DAILY_XP_CAP = 150;
 export const DAILY_GOAL_BONUS_XP = 20;
 export const DAILY_GOAL_BONUS_ACTION = 'daily_goal_complete';
 
+/** Refeições a marcar por dia para fechar a tarefa (café, almoço, jantar...). */
+const MEALS_PER_DAY = 3;
+
 const TASK_COINS: Record<DailyTaskKey, number> = {
   hydration: COIN_REWARDS.taskHydration,
   medication: COIN_REWARDS.taskMedication,
@@ -181,6 +184,21 @@ export class DailyGoalService {
         current: exercised > 0 ? 1 : 0,
         target: 1,
         done: exercised > 0,
+      });
+    }
+
+    if (modules.includes('MEALS')) {
+      // Só presença: quantos tipos de refeição a pessoa marcou hoje.
+      const logged = await this.prisma.mealLog.findMany({
+        where: { profileId, loggedAt: today },
+        select: { mealType: true },
+        distinct: ['mealType'],
+      });
+      tasks.push({
+        key: 'meals',
+        current: logged.length,
+        target: MEALS_PER_DAY,
+        done: logged.length >= MEALS_PER_DAY,
       });
     }
 

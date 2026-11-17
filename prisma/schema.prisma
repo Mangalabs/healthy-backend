@@ -98,6 +98,7 @@ model Profile {
   hydrationLogs  HydrationLog[]
   weightLogs     WeightLog[]
   exerciseLogs   ExerciseLog[]
+  mealLogs       MealLog[]
   xpEvents       XpEvent[]
   coinEvents     CoinEvent[]
   restDays       RestDay[]
@@ -204,6 +205,28 @@ model ExerciseLog {
   @@index([profileId, loggedAt])
   @@map("exercise_logs")
 }
+enum MealType {
+  BREAKFAST
+  LUNCH
+  DINNER
+  SNACK
+}
+
+/// Marcação de que a pessoa comeu (sem calorias nem alimentos). Uma por tipo
+/// de refeição por dia; o app só conta presença, nunca quantidade.
+model MealLog {
+  id        String   @id @default(uuid()) @db.Uuid
+  profileId String   @map("profile_id") @db.Uuid
+  mealType  MealType @map("meal_type")
+  loggedAt  DateTime @map("logged_at") @db.Timestamptz
+  createdAt DateTime @default(now()) @map("created_at")
+
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId, loggedAt])
+  @@map("meal_logs")
+}
+
 /// Livro-razão de moedas. Moedas vêm de metas cumpridas (nunca de velocidade)
 /// e só compram itens cosméticos. A chave única torna cada prêmio idempotente.
 model CoinEvent {
