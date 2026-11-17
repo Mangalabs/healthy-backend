@@ -44,7 +44,7 @@ Salvo em `profile.petDna`; a espécie vem de `profile.petSpecies`.
 }
 ```
 
-Espécies desenhadas: `CAT`, `DOG`, `OTTER`, `FISH`, `GIRAFFE` e `RABBIT` (o coelho é o protótipo do estilo aquarela, com jaqueta azul, contorno de tinta e papel de fundo; as outras ainda são chapadas). `HAMSTER` o servidor aceita, o app ainda não desenha. Acessórios abrem por nível ou sequência. O app lê o DNA com tolerância (campo ausente ou desconhecido vira o padrão).
+Espécies desenhadas: `CAT`, `DOG`, `OTTER`, `FISH`, `GIRAFFE` e `RABBIT`. Todas no estilo "pelúcia macia": camadas de cor sem contorno, volume por uma meia-lua mais escura embaixo à direita e um brilho no alto à esquerda, olhos com duas luzes, bochechas em duas camadas e sombra suave no chão. O coelho veste só o que o jogador comprar (roupa é da loja). `HAMSTER` o servidor aceita, o app ainda não desenha. Acessórios abrem por nível ou sequência. O app lê o DNA com tolerância (campo ausente ou desconhecido vira o padrão).
 
 Itens da loja ficam fora do DNA, em `profile.petLoadout` (`{ "HAIR": "hair_bun", ... }`); o catálogo e os preços moram em `src/modules/shop/shop.catalog.ts`, e o app desenha cada item pelo `id` (id desconhecido não desenha nada).
 
@@ -75,5 +75,5 @@ App (em `health_flutter`): `flutter test`, `flutter analyze`, `flutter build apk
 - Login Google/Apple no app (o endpoint `social-login` existe; falta ligar os SDKs e as chaves).
 - Build iOS (precisa de Mac ou serviço de build na nuvem).
 - Rota para a pessoa apagar a própria conta (necessária para publicar nas lojas).
-- Espécie `HAMSTER` no desenho, e o estilo aquarela nas demais espécies (hoje só o coelho; a jaqueta e os enfeites da loja ainda são chapados).
+- Espécie `HAMSTER` no desenho. Os enfeites da loja (cabelo, roupa) ainda são chapados, sem o volume da pelúcia.
 - Limite de uso da IA é em memória (por instância do servidor).
