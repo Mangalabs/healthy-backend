@@ -1,11 +1,14 @@
 import {
   Body,
   Controller,
+  DefaultValuePipe,
   Delete,
   Get,
   Param,
+  ParseIntPipe,
   ParseUUIDPipe,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -28,6 +31,15 @@ export class GoalsController {
   @Get('today')
   today(@CurrentUser() user: AuthenticatedUser) {
     return this.daily.today(user.profileId);
+  }
+
+  /** Como a pessoa vem se cuidando nos últimos dias (alimenta o pet). */
+  @Get('history')
+  history(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query('days', new DefaultValuePipe(7), ParseIntPipe) days: number,
+  ) {
+    return this.daily.history(user.profileId, days);
   }
 
   @Post('rest-day')

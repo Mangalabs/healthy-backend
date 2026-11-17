@@ -2,8 +2,10 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import {
   addDaysToKey,
+  localDateKey,
   localDayRange,
   safeTimezone,
+  startOfLocalDay,
 } from '../../common/utils/date.util';
 import { activeModules } from '../profile/profile.serializer';
 import { COIN_REWARDS, CoinsService } from './coins.service';
@@ -183,6 +185,94 @@ export class DailyGoalService {
     }
 
     return tasks;
+  }
+
+  /**
+   * Últimos `days` dias (do mais antigo ao de hoje): quantas tarefas foram
+   * feitas em cada um e há quantos dias a pessoa não registra nada. O pet usa
+   * isso para saber como a pessoa vem se cuidando; dias de descanso não contam
+   * como falta.
+   */
+  async history(profileId: string, days = 7) {
+    const profile = await this.prisma.profile.findUniqueOrThrow({
+      where: { id: profileId },
+      select: {
+        timezone: true,
+        dailyHydrationGoal: true,
+        trackedModules: true,
+        setupCompletedAt: true,
+      },
+    });
+    const timezone = safeTimezone(profile.timezone);
+    const modules = activeModules(profile);
+    const todayKey = localDateKey(new Date(), timezone);
+    const count = Math.min(Math.max(Math.trunc(days) || 7, 1), 30);
+
+    const result: {
+      dayKey: string;
+      tasksTotal: number;
+      tasksDone: number;
+      anyHabit: boolean;
+      restDay: boolean;
+    }[] = [];
+    for (let i = count - 1; i >= 0; i--) {
+      const dayKey = addDaysToKey(todayKey, -i);
+      const range = {
+        start: startOfLocalDay(dayKey, timezone),
+        end: startOfLocalDay(addDaysToKey(dayKey, 1), timezone),
+      };
+      const tasks = await this.buildTasks(
+        profileId,
+        modules,
+        profile.dailyHydrationGoal,
+        range,
+      );
+      const [habits, rest] = await Promise.all([
+        this.prisma.xpEvent.count({
+          where: {
+            profileId,
+            dayKey,
+            action: { not: DAILY_GOAL_BONUS_ACTION },
+          },
+        }),
+        this.prisma.restDay.count({ where: { profileId, dayKey } }),
+      ]);
+      result.push({
+        dayKey,
+        tasksTotal: tasks.length,
+        tasksDone: tasks.filter((t) => t.done).length,
+        anyHabit: habits > 0,
+        restDay: rest > 0,
+      });
+    }
+
+    const last = await this.prisma.xpEvent.findFirst({
+      where: { profileId, action: { not: DAILY_GOAL_BONUS_ACTION } },
+      orderBy: { dayKey: 'desc' },
+      select: { dayKey: true },
+    });
+    let daysSinceActivity: number | null = null;
+    if (last) {
+      const rested = new Set(
+        (
+          await this.prisma.restDay.findMany({
+            where: { profileId, dayKey: { gt: last.dayKey, lte: todayKey } },
+            select: { dayKey: true },
+          })
+        ).map((r) => r.dayKey),
+      );
+      let gap = 0;
+      for (
+        let cursor = addDaysToKey(last.dayKey, 1);
+        cursor <= todayKey && gap < 400;
+        cursor = addDaysToKey(cursor, 1)
+      ) {
+        if (!rested.has(cursor)) gap++;
+      }
+      daysSinceActivity = gap;
+    }
+
+    return { days: result, daysSinceActivity };
   }
 
   /**

@@ -433,8 +433,59 @@ describe('Metas, XP e moedas (e2e)', () => {
     });
   });
 
+  describe('histórico para o pet', () => {
+    it('conta sem registros: sete dias vazios e nenhum dia sem atividade', async () => {
+      const s = await signUp('historico-vazio');
+      const res = await get(s, '/goals/history').expect(200);
+      expect(res.body.data.days).toHaveLength(7);
+      expect(res.body.data.daysSinceActivity).toBeNull();
+    });
+
+    it('conta tarefas feitas por dia e os dias sem atividade, sem contar descanso', async () => {
+      const s = await signUp('historico');
+      await patch(s, '/profile', {
+        trackedModules: ['HYDRATION'],
+        setupCompleted: true,
+      }).expect(200);
+      const todayKey = (await today(s)).dayKey as string;
+
+      await drink(s, 2000);
+      let res = await get(s, '/goals/history?days=3').expect(200);
+      expect(res.body.data.days).toHaveLength(3);
+      const last = res.body.data.days[2];
+      expect(last).toMatchObject({
+        dayKey: todayKey,
+        tasksTotal: 1,
+        tasksDone: 1,
+        anyHabit: true,
+      });
+      expect(res.body.data.daysSinceActivity).toBe(0);
+
+      // última atividade há 4 dias: 4 dias sem registrar
+      await prisma.xpEvent.deleteMany({ where: { profileId: s.profileId } });
+      await prisma.xpEvent.create({
+        data: {
+          profileId: s.profileId,
+          action: 'hydration_logged',
+          dayKey: addDaysToKey(todayKey, -4),
+          xp: 10,
+        },
+      });
+      res = await get(s, '/goals/history').expect(200);
+      expect(res.body.data.daysSinceActivity).toBe(4);
+
+      // um dia de descanso nesse intervalo não conta como falta
+      await prisma.restDay.create({
+        data: { profileId: s.profileId, dayKey: addDaysToKey(todayKey, -2) },
+      });
+      res = await get(s, '/goals/history').expect(200);
+      expect(res.body.data.daysSinceActivity).toBe(3);
+    });
+  });
+
   it('exige login', async () => {
     await http().get('/api/v1/goals/today').expect(401);
     await http().get('/api/v1/coins').expect(401);
+    await http().get('/api/v1/goals/history').expect(401);
   });
 });
