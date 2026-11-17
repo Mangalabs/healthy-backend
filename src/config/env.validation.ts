@@ -29,6 +29,11 @@ class EnvironmentVariables {
   @IsString()
   JWT_SECRET: string;
 
+  /** Chave da API da Anthropic; sem ela a criação de pet com IA fica desligada. */
+  @IsString() @IsOptional() ANTHROPIC_API_KEY?: string;
+  /** Modelo usado para gerar o pet (padrão: claude-haiku-5-5). */
+  @IsString() @IsOptional() PET_AI_MODEL?: string;
+
   @IsString() @IsOptional() SMTP_HOST?: string;
   @Type(() => Number) @IsNumber() @IsOptional() SMTP_PORT?: number;
   @IsString() @IsOptional() SMTP_USER?: string;

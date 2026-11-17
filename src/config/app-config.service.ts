@@ -12,4 +12,12 @@ export class AppConfigService {
   get databaseUrl(): string {
     return this.configService.get<string>('DATABASE_URL');
   }
+
+  get anthropicApiKey(): string | undefined {
+    return this.configService.get<string>('ANTHROPIC_API_KEY') || undefined;
+  }
+
+  get petAiModel(): string | undefined {
+    return this.configService.get<string>('PET_AI_MODEL') || undefined;
+  }
 }
