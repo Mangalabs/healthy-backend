@@ -32,11 +32,11 @@ Salvo em `profile.petDna`; a espécie vem de `profile.petSpecies`.
 ```json
 {
   "v": 1,
-  "bodyType": "sitting | standing | upright | fish | tall",
+  "bodyType": "sitting | standing | upright | fish | tall | bunny",
   "primaryColor": "#E8A55C",
   "secondaryColor": "#F8E3C4",
   "pattern": "none | spots | stripes | belly",
-  "earType": "none | pointy | floppy | round | horns",
+  "earType": "none | pointy | floppy | round | horns | long",
   "eyeType": "round | happy | sparkle | lashes | dots | wink",
   "mouthType": "smile | open | kitty",
   "accessory": "bow | glasses | hat | scarf | null",
@@ -44,7 +44,7 @@ Salvo em `profile.petDna`; a espécie vem de `profile.petSpecies`.
 }
 ```
 
-Espécies desenhadas: `CAT`, `DOG`, `OTTER`, `FISH`, `GIRAFFE` (`RABBIT` e `HAMSTER` o servidor aceita, o app ainda não desenha). Acessórios abrem por nível ou sequência. O app lê o DNA com tolerância (campo ausente ou desconhecido vira o padrão).
+Espécies desenhadas: `CAT`, `DOG`, `OTTER`, `FISH`, `GIRAFFE` e `RABBIT` (o coelho é o protótipo do estilo aquarela, com jaqueta azul, contorno de tinta e papel de fundo; as outras ainda são chapadas). `HAMSTER` o servidor aceita, o app ainda não desenha. Acessórios abrem por nível ou sequência. O app lê o DNA com tolerância (campo ausente ou desconhecido vira o padrão).
 
 Itens da loja ficam fora do DNA, em `profile.petLoadout` (`{ "HAIR": "hair_bun", ... }`); o catálogo e os preços moram em `src/modules/shop/shop.catalog.ts`, e o app desenha cada item pelo `id` (id desconhecido não desenha nada).
 
@@ -75,5 +75,5 @@ App (em `health_flutter`): `flutter test`, `flutter analyze`, `flutter build apk
 - Login Google/Apple no app (o endpoint `social-login` existe; falta ligar os SDKs e as chaves).
 - Build iOS (precisa de Mac ou serviço de build na nuvem).
 - Rota para a pessoa apagar a própria conta (necessária para publicar nas lojas).
-- Espécies `RABBIT` e `HAMSTER` no desenho.
+- Espécie `HAMSTER` no desenho, e o estilo aquarela nas demais espécies (hoje só o coelho; a jaqueta e os enfeites da loja ainda são chapados).
 - Limite de uso da IA é em memória (por instância do servidor).
