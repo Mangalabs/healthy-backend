@@ -30,6 +30,7 @@ export class GamificationController {
         maxStreakDays: true,
         lastActiveDate: true,
         timezone: true,
+        coins: true,
       },
     });
 
@@ -45,10 +46,12 @@ export class GamificationController {
       xpIntoLevel: progress.xpIntoLevel,
       nextLevelGoal: progress.xpForNextLevel,
       progressPercentage: progress.progressPercentage,
-      streakDays: this.streakService.effectiveStreak(
+      streakDays: await this.streakService.currentStreak(
         profile,
+        user.profileId,
         safeTimezone(profile.timezone),
       ),
+      coins: profile.coins,
       maxStreakDays: profile.maxStreakDays,
       lastActiveDate: profile.lastActiveDate,
     };
