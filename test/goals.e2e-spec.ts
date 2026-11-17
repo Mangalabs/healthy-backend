@@ -459,6 +459,10 @@ describe('Metas, XP e moedas (e2e)', () => {
         tasksDone: 1,
         anyHabit: true,
       });
+      // o detalhe de cada tarefa alimenta as estatísticas do app
+      expect(last.tasks).toEqual([
+        { key: 'hydration', current: 2000, target: 2000, done: true },
+      ]);
       expect(res.body.data.daysSinceActivity).toBe(0);
 
       // última atividade há 4 dias: 4 dias sem registrar

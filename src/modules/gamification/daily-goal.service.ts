@@ -212,6 +212,7 @@ export class DailyGoalService {
       dayKey: string;
       tasksTotal: number;
       tasksDone: number;
+      tasks: DailyTask[];
       anyHabit: boolean;
       restDay: boolean;
     }[] = [];
@@ -241,6 +242,7 @@ export class DailyGoalService {
         dayKey,
         tasksTotal: tasks.length,
         tasksDone: tasks.filter((t) => t.done).length,
+        tasks,
         anyHabit: habits > 0,
         restDay: rest > 0,
       });
